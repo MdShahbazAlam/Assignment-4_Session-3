@@ -1,0 +1,118 @@
+Assignment-4_Session-3
+
+Problem Statement:
+
+1. Import the Titanic Dataset from the link Titanic Data Set.
+Perform the following:
+
+a. Preprocess the passenger names to come up with a list of titles that represent families
+and represent using appropriate visualization graph.
+Answer-
+# Reading the data set.
+titanic_data <- read.csv("Titanic.csv", T, ",")
+# Subsetting the Name column for SubTitle.
+titanic_data$SubTitle <- gsub("\\..*", "", titanic_data$name)
+# Subsetting the Name column for Title.
+titanic_data$Title <- gsub(".*\\ ", "", titanic_data$SubTitle)
+
+#Viewing the data in table form
+table(titanic_data$Title)
+
+par(mfrow = c(1,1))
+# Creating a barplot for the Titles of the Names of passengers.
+Title <- barplot(table(titanic_data$Title),
+                 main = "No. of Passangers by Title", xlab = "Title", 
+                 ylab = "No. of Passangers", col = "lightblue", las =3)
+text(Title, 0,table(titanic_data$Title), pos = 3, srt = 0)
+
+
+b. Represent the proportion of people survived from the family size using a graph.
+Answer-
+x <- table(titanic_data$Survived, titanic_data$Title) # table for survived and died
+x                                                    # 0 for survived and 1 for died
+p <- x[1,]    # number of passengers survived
+p
+
+prop <- round(p*100/sum(p),1)  # proportion of passangers survived 
+
+# in Pie Chart format
+pie_chart <- pie(p, labels = p, main = " Proportion of Survival by Family",
+                 col = rainbow(length(p)), cex = 1)
+legend("topright", names(p), cex= 0.5, fill = rainbow(length(p)))
+
+
+pie(prop, labels = prop, main = " Proportion of Survival by Family",
+    col = rainbow(length(prop)), cex = 1)
+legend("topright", names(prop), cex= 0.5, fill = rainbow(length(prop)))
+
+
+# in barchart format
+barplot(p,              
+        main = "No. of Passangers Survived by Title", 
+        xlab = "Title", 
+        ylab = "No. of Passangers", col = rainbow(length(p)), las =3)
+text(p, pos = 3, srt = 90) # for number of Passangers
+
+barplot(prop,           
+        main = "No. of Passangers by Title", xlab = "Title", 
+        ylab = "No. of Passangers", col = c("Blue","Red"), 
+        legend = rownames(prop), ylim=c(0, 100), las = 3)
+text(prop, pos = 3, srt = 90) # for percentage of passangers
+
+
+c. Impute the missing values in Age variable using Mice library, create two different
+graphs showing Age distribution before and after imputation.
+Answer-
+library(readr)
+titanic_data <- within(titanic_data,
+                      {
+                        agecat <- NA
+                        agecat[Age>=0 & Age<=25] <- "Low"
+                        agecat[Age>=26 & Age<=40] <- "Middle"
+                        agecat[Age>=41] <- "High"
+                      })
+head(titanic_data)
+
+# Title and Age Group before imputation
+
+count <- table(titanic_data$agecat, titanic_data$Title)
+count
+library(ggplot2)
+p <- ggplot(data = titanic_data,
+            mapping = aes(Title, fill = agecat)) 
+p + geom_bar(position = "stack") + theme(axis.text.x = element_text(angle = 90)) + labs(title = "Counts of Title with Age Groups")
+
+
+library(mice)
+# All variables shoud be either factor or numeric.
+
+library(dplyr)
+str(titanic_data)
+
+dat <- titanic_data[,-13]
+str(dat)
+dat <- dat %>% mutate(agecat = as.factor(agecat),Title = as.factor(Title)) # Convert as factor
+str(dat)    # Check the data set
+
+# Now the data set is ready for imputation
+# using library mice. called earlier
+init = mice(dat, maxit=0) 
+meth = init$method
+predM = init$predictorMatrix
+
+# below variable are not required for predicting the age
+predM[, c("PassengerId","Name", "Age","Ticket","Cabin", "Embarked")]=0
+# specify method for imputing the missing value
+meth[c("Age")]="norm"
+set.seed(1)
+# impute the missing values
+imputed = mice(dat, method=meth, predictorMatrix=predM, m=5)
+imputed <- complete(imputed)
+# check for missings in the imputed dataset
+sapply(imputed, function(x) sum(is.na(x)))
+
+# Title and Age Group after imputation
+library(ggplot2)
+p <- ggplot(data = imputed,
+            mapping = aes(Title, fill = agecat))
+p + geom_bar(position = "stack")+theme(axis.text.x = element_text(angle = 90)) + labs(title = "Counts of Title with Age Groups")
